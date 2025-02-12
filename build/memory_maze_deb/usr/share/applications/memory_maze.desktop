@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Memory Maze
+Comment=A brain development maze game for kids and adults.
+Exec=/usr/local/bin/memory_maze
+Icon=/usr/share/pixmaps/memory_maze.png
+Terminal=false
+Categories=Game;
