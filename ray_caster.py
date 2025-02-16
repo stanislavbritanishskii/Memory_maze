@@ -1,4 +1,4 @@
-from rays import cast_ray
+from rays import cast_ray, cast_horizontal_ray
 from player import Player
 import math
 import pygame
@@ -8,7 +8,7 @@ import pygame
 def is_close_to_grid(coord, cell_size, delta):
 	# Calculate the distance from the coordinate to the previous grid line.
 	remainder = coord % cell_size
-	print(remainder)
+
 	# Check if it's within delta of either the previous or next grid line.
 	return remainder < delta or (cell_size - remainder) < delta
 

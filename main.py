@@ -5,21 +5,23 @@ from maze_functions import *
 from rays import *
 from player import *
 from collections import deque
+from ray_caster import draw_view
 
 WINDOW_SIZE = 1000
 WINDOW_TITLE = "Memory Maze"
 FPS = 60
 
 # Global configuration variables (modifiable in the start screen)
-config_grid_size = 21
-config_time_to_start = 10.0  # in seconds
+config_grid_size = 5
+config_time_to_start = 1.0  # in seconds
 config_show_best_route = True
 config_view_distance = 5
+
 # These will be updated when simulation starts
 GRID_SIZE = config_grid_size
 CELL_SIZE = WINDOW_SIZE // GRID_SIZE
 PLAYER_SPEED = CELL_SIZE * 5  # pixels per second
-
+THREE_D = True
 
 def draw_grid(grid, screen, furthest: pygame.math.Vector2 = None, start: pygame.math.Vector2 = None):
 	"""
@@ -91,6 +93,7 @@ def draw_start_screen(screen, font):
 		"Time to Start (seconds): {:.2f} (RIGHT/LEFT keys)".format(config_time_to_start),
 		"View Distance (tiles): {:.0f} (-/= keys)".format(config_view_distance),
 		"Show Best Route: {} (Press B to toggle)".format("[X]" if config_show_best_route else "[ ]"),
+		"3D mode: {} (Press D to toggle)".format("[X]" if THREE_D else "[ ]"),
 		"Press ENTER to start simulation"
 	]
 
@@ -140,13 +143,14 @@ def set_window_size():
 	pygame.display.quit()
 
 def main():
-	global config_grid_size, config_time_to_start, config_show_best_route, PLAYER_SPEED, config_view_distance, WINDOW_SIZE
+	global config_grid_size, config_time_to_start, config_show_best_route, PLAYER_SPEED, config_view_distance, WINDOW_SIZE, THREE_D
 	pygame.init()
 
 	set_window_size()
 
 	screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))
 	pygame.display.set_caption(WINDOW_TITLE)
+	pygame.mouse.set_visible(False)
 	clock = pygame.time.Clock()
 	font = pygame.font.SysFont(None, 30)
 
@@ -192,6 +196,8 @@ def main():
 							config_time_to_start -= 1.0
 					elif event.key == pygame.K_b:
 						config_show_best_route = not config_show_best_route
+					elif event.key == pygame.K_d:
+						THREE_D = not THREE_D
 					elif event.key == pygame.K_RETURN:
 						# End configuration mode and begin simulation (countdown starts)
 						grid, player, furthest, player_start_cell, path, path_taken, PLAYER_SPEED = start_simulation(config_grid_size)
@@ -217,11 +223,20 @@ def main():
 						if event.key == pygame.K_r:
 							# Restart simulation and go back to configuration
 							in_start_screen = True
+							active = False
 							simulation_start_time = pygame.time.get_ticks()
 							elapsed_time = 0.0
 							grid, player, furthest, player_start_cell, path, path_taken, PLAYER_SPEED = start_simulation(config_grid_size)
 						elif event.key == pygame.K_ESCAPE:
 							pygame.quit()
+					elif event.type == pygame.MOUSEMOTION and active:
+						# event.rel gives the relative movement (dx, dy)
+						dx, dy = event.rel
+						if dx < 0:
+							player.orientation -= 0.03
+						if dx > 0:
+							player.orientation += 0.03
+						pygame.mouse.set_pos(WINDOW_SIZE // 2, WINDOW_SIZE // 2)
 
 		# In configuration mode, freeze countdown by resetting simulation_start_time
 		if in_start_screen:
@@ -242,11 +257,19 @@ def main():
 					movement.y -= 1
 				if keys[pygame.K_s] or keys[pygame.K_DOWN]:
 					movement.y += 1
+
+				if keys[pygame.K_e]:
+					player.orientation += 0.1
+				if keys[pygame.K_q]:
+					player.orientation -= 0.1
 				if keys[pygame.K_a] or keys[pygame.K_LEFT]:
 					movement.x -= 1
 				if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
 					movement.x += 1
-				player.move(movement, grid, CELL_SIZE, dt)
+				if THREE_D:
+					player.move_3d(movement, grid, CELL_SIZE, dt)
+				else:
+					player.move(movement, grid, CELL_SIZE, dt)
 
 				# Update path taken if the player moves to a new cell
 				current_cell = [int(player.pos.y / CELL_SIZE), int(player.pos.x / CELL_SIZE)]
@@ -266,13 +289,19 @@ def main():
 				elapsed_time += dt
 
 		# Drawing section
-		screen.fill((0, 0, 0))
-		draw_grid(grid, screen, furthest, player_start_cell)
+
+		if not THREE_D:
+			screen.fill((0, 0, 0))
+		else:
+			screen.fill((255, 255, 255))
+		if not active or active and not THREE_D:
+			draw_grid(grid, screen, furthest, player_start_cell)
 
 		# Always draw the best and taken paths on the map
 		if config_show_best_route and not active or end_screen:
 			draw_path(path, screen)
-		draw_path(path_taken, screen, (128, 0, 0))
+		if not active or active and not THREE_D:
+			draw_path(path_taken, screen, (128, 0, 0))
 
 		if in_start_screen:
 			# Draw the configuration overlay (start screen)
@@ -292,8 +321,11 @@ def main():
 				countdown_text = font.render("Time to start: {:.2f} s".format(remaining), True, (128, 128, 128))
 				screen.blit(countdown_text, (10, 10))
 			else:
-				draw_polygon_from_rays(player, grid, CELL_SIZE, config_view_distance * CELL_SIZE, screen, 1)
-				# Simulation active: show elapsed time and other info
+				if THREE_D:
+					draw_view(player, grid, CELL_SIZE, config_view_distance * CELL_SIZE, screen, WINDOW_SIZE, WINDOW_SIZE)
+				else:
+					draw_polygon_from_rays(player, grid, CELL_SIZE, config_view_distance * CELL_SIZE, screen, 1)
+					# Simulation active: show elapsed time and other info
 				time_text = font.render("Elapsed Time: {:.2f} s".format(elapsed_time), True, (128, 128, 128))
 				best_path_length_text = font.render("Best Path Length: {:.2f}".format(len(path)), True, (128, 128, 128))
 				path_taken_text = font.render("Path Taken Length: {:.2f}".format(len(path_taken)), True, (128, 128, 128))
@@ -301,8 +333,8 @@ def main():
 				screen.blit(best_path_length_text, (10, 30))
 				screen.blit(path_taken_text, (10, 50))
 
-
-		player.draw(screen)
+		if not THREE_D:
+			player.draw(screen)
 		pygame.display.flip()
 
 

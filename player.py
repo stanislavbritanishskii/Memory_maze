@@ -41,6 +41,8 @@ class Player:
 		- color: The player's color.
 		"""
 		self.pos = pos
+		self.orientation = 0
+		self.fov = 90
 		self.radius = radius
 		self.speed = speed
 		self.color = color
@@ -65,6 +67,47 @@ class Player:
 		new_pos.y += movement.y
 		if not circle_collides(new_pos, self.radius, grid, CELL_SIZE):
 			self.pos.y = new_pos.y
+
+	def move_3d(self, movement, grid, CELL_SIZE, dt):
+		"""
+		Attempts to move the player considering orientation.
+		- movement: A pygame.math.Vector2 representing the desired movement (already scaled by dt).
+		- grid: The game grid.
+		- CELL_SIZE: The size of each grid cell.
+		"""
+
+		if movement.length() != 0:
+			movement = movement.normalize() * self.speed * dt
+			if self.orientation > math.pi:
+				self.orientation -= 2 * math.pi
+			if self.orientation < -math.pi:
+				self.orientation += 2 * math.pi
+			angle_rad = self.orientation + math.pi / 2
+			if angle_rad > math.pi:
+				angle_rad -= 2 * math.pi
+			if angle_rad < -math.pi:
+				angle_rad += 2 * math.pi
+
+			rotated_movement = pygame.math.Vector2(
+				movement.x * math.cos(angle_rad) - movement.y * math.sin(angle_rad),
+				movement.x * math.sin(angle_rad) + movement.y * math.cos(angle_rad)
+			)
+		else:
+			rotated_movement = pygame.math.Vector2()
+
+
+		# Move in x direction
+		new_pos = self.pos.copy()
+		new_pos.x += rotated_movement.x
+		if not circle_collides(new_pos, self.radius, grid, CELL_SIZE):
+			self.pos.x = new_pos.x
+		# Move in y direction
+		new_pos = self.pos.copy()
+		new_pos.y += rotated_movement.y
+		if not circle_collides(new_pos, self.radius, grid, CELL_SIZE):
+			self.pos.y = new_pos.y
+
+
 
 	def draw(self, screen):
 		"""

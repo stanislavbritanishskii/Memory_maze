@@ -70,6 +70,141 @@ def cast_ray(start, direction, grid, CELL_SIZE, max_distance):
 	return end_point
 
 
+import math
+
+
+def cast_horizontal_ray(start_x, start_y, end_x, end_y, cell_size, grid, path, delta):
+	"""
+	Casts a horizontal ray on the floor from (start_x, start_y) to (end_x, end_y).
+	Returns a list of segments, each segment is:
+		[x_start, y_start, x_end, y_end, (r, g, b)]
+
+	Colors:
+		- White (255,255,255): normal segments.
+		- Grey (128,128,128): segments where every point is closer than delta to a grid line.
+		- Red (255,0,0): segments where every point is within delta of the center of the cell
+		  (i.e. inside a circle of radius delta centered in the cell) and that cell is in the given path.
+
+	Parameters:
+		start_x, start_y: Starting coordinates.
+		end_x, end_y: Ending coordinates.
+		cell_size: The size of each cell.
+		grid: 2D grid (not used for geometry, but kept for consistency).
+		path: List of [cell_x, cell_y] indicating cells that, if hit near center, make the segment red.
+		delta: The threshold distance for grid boundaries or cell centers.
+	"""
+	segments = []
+
+	dx = end_x - start_x
+	dy = end_y - start_y
+	# Parameter t goes from 0 to 1 along the ray.
+	t_breaks = set([0.0, 1.0])
+
+	# Helper: Given a coordinate range, add t where x(t) equals k*cell_size ± delta.
+	x_min = min(start_x, end_x)
+	x_max = max(start_x, end_x)
+	k_min = int(math.floor(x_min / cell_size)) - 1
+	k_max = int(math.floor(x_max / cell_size)) + 1
+	for k in range(k_min, k_max + 1):
+		# x = k*cell_size + delta
+		if dx != 0:
+			t_val = (k * cell_size + delta - start_x) / dx
+			if 0.0 <= t_val <= 1.0:
+				t_breaks.add(t_val)
+		# x = k*cell_size - delta
+		if dx != 0:
+			t_val = (k * cell_size - delta - start_x) / dx
+			if 0.0 <= t_val <= 1.0:
+				t_breaks.add(t_val)
+
+	# Similarly for y: y = m*cell_size ± delta.
+	y_min = min(start_y, end_y)
+	y_max = max(start_y, end_y)
+	m_min = int(math.floor(y_min / cell_size)) - 1
+	m_max = int(math.floor(y_max / cell_size)) + 1
+	for m in range(m_min, m_max + 1):
+		if dy != 0:
+			t_val = (m * cell_size + delta - start_y) / dy
+			if 0.0 <= t_val <= 1.0:
+				t_breaks.add(t_val)
+		if dy != 0:
+			t_val = (m * cell_size - delta - start_y) / dy
+			if 0.0 <= t_val <= 1.0:
+				t_breaks.add(t_val)
+
+	# For red segments: for each cell in path, compute intersection of the ray with the circle
+	# centered at the cell's center (with radius delta).
+	for cell in path:
+		cell_x, cell_y = cell
+		center_x = cell_x * cell_size + cell_size / 2.0
+		center_y = cell_y * cell_size + cell_size / 2.0
+		# Solve (start_x + t*dx - center_x)^2 + (start_y + t*dy - center_y)^2 = delta^2
+		A = dx * dx + dy * dy
+		B = 2 * (dx * (start_x - center_x) + dy * (start_y - center_y))
+		C = (start_x - center_x) ** 2 + (start_y - center_y) ** 2 - delta * delta
+		if A == 0:
+			continue
+		discriminant = B * B - 4 * A * C
+		if discriminant < 0:
+			continue
+		sqrt_disc = math.sqrt(discriminant)
+		t1 = (-B - sqrt_disc) / (2 * A)
+		t2 = (-B + sqrt_disc) / (2 * A)
+		for t_val in (t1, t2):
+			if 0.0 <= t_val <= 1.0:
+				t_breaks.add(t_val)
+
+	# Sort all t breakpoints.
+	t_breaks = sorted(t_breaks)
+
+	# Function to classify a point along the ray.
+	def classify_point(t):
+		x = start_x + t * dx
+		y = start_y + t * dy
+		# Determine which cell we're in.
+		cell_x = int(x // cell_size)
+		cell_y = int(y // cell_size)
+		# Red test: if the point is within delta of the cell center AND the cell is in path.
+		center_x = cell_x * cell_size + cell_size / 2.0
+		center_y = cell_y * cell_size + cell_size / 2.0
+		if math.hypot(x - center_x, y - center_y) < delta:
+			if [cell_x, cell_y] in path:
+				return "red"
+		# Grey test: if the point is within delta of any grid line.
+		# For vertical grid lines:
+		mod_x = x - cell_x * cell_size
+		dist_x = min(mod_x, cell_size - mod_x)
+		# For horizontal grid lines:
+		mod_y = y - cell_y * cell_size
+		dist_y = min(mod_y, cell_size - mod_y)
+		if dist_x < delta or dist_y < delta:
+			return "grey"
+		return "white"
+
+	# Now, iterate over each consecutive interval in t.
+	for i in range(len(t_breaks) - 1):
+		t0 = t_breaks[i]
+		t1 = t_breaks[i + 1]
+		# Sample a midpoint; because our breakpoints are chosen to be the only transitions,
+		# the property is constant over [t0, t1].
+		t_mid = (t0 + t1) / 2.0
+		prop = classify_point(t_mid)
+		if prop == "red":
+			color = (255, 0, 0)
+		elif prop == "grey":
+			color = (128, 128, 128)
+		else:
+			color = (255, 255, 255)
+
+		seg_start_x = start_x + t0 * dx
+		seg_start_y = start_y + t0 * dy
+		seg_end_x = start_x + t1 * dx
+		seg_end_y = start_y + t1 * dy
+		segments.append([seg_start_x, seg_start_y, seg_end_x, seg_end_y, color])
+
+	return segments
+
+
 def draw_polygon_from_rays(player, grid, cell_size, max_distance, screen, angle_step=1):
 	"""
 	Casts rays from the player's position in all directions, collects the endpoints,
