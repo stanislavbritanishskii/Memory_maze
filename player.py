@@ -47,6 +47,12 @@ class Player:
 		self.speed = speed
 		self.color = color
 
+	def normalize_orientation(self):
+		while self.orientation > math.pi:
+			self.orientation -= 2 * math.pi
+		while self.orientation < -math.pi:
+			self.orientation += 2 * math.pi
+
 	def move(self, movement, grid, CELL_SIZE, dt):
 		"""
 		Attempts to move the player using separate axis collision checking.
@@ -78,10 +84,7 @@ class Player:
 
 		if movement.length() != 0:
 			movement = movement.normalize() * self.speed * dt
-			if self.orientation > math.pi:
-				self.orientation -= 2 * math.pi
-			if self.orientation < -math.pi:
-				self.orientation += 2 * math.pi
+			self.normalize_orientation()
 			angle_rad = self.orientation + math.pi / 2
 			if angle_rad > math.pi:
 				angle_rad -= 2 * math.pi

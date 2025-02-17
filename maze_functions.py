@@ -13,7 +13,10 @@ def generate_maze(width, height, round_walk: 20):
 	"""
 
 	grid = [[False] * width for _ in range(height)]
-
+	# for i in range(1, height - 1):
+	# 	for j in range(1, width - 1):
+	# 		grid[i][j] = True
+	# return grid
 	# Choose a starting cell; typically (1,1) works for grids at least 3x3.
 	start_i, start_j = 1, 1
 	grid[start_i][start_j] = True
@@ -71,7 +74,7 @@ from collections import deque
 import pygame
 
 
-def bfs_furthest(x, y, grid):
+def bfs_furthest(x, y, grid, path_color=(0,0,0)):
 	"""
 	Finds and returns the furthest cell reachable from the starting cell (x, y) using BFS,
 	along with the shortest path from (x, y) to that furthest cell.
@@ -131,11 +134,11 @@ def bfs_furthest(x, y, grid):
 					q.append((nx, ny, dist + 1))
 
 	# Reconstruct the shortest path from (x, y) to the furthest cell.
-	path = []
+	path = {}
 	cell = furthest_cell
 	while cell is not None:
-		path.append(cell)
+		path[cell] = path_color
 		cell = prev[cell]
-	path.reverse()
+	# path.reverse()
 
 	return pygame.math.Vector2(furthest_cell[0], furthest_cell[1]), path

@@ -1,4 +1,5 @@
 import math
+from typing import Dict, Tuple
 import pygame
 
 def cast_ray(start, direction, grid, CELL_SIZE, max_distance):
@@ -73,7 +74,7 @@ def cast_ray(start, direction, grid, CELL_SIZE, max_distance):
 import math
 
 
-def cast_horizontal_ray(start_x, start_y, end_x, end_y, cell_size, grid, path, delta):
+def cast_horizontal_ray(start_x, start_y, end_x, end_y, cell_size, grid, path:Dict[Tuple[int, int], Tuple[int, int, int]], delta, path_delta=0):
 	"""
 	Casts a horizontal ray on the floor from (start_x, start_y) to (end_x, end_y).
 	Returns a list of segments, each segment is:
@@ -134,14 +135,14 @@ def cast_horizontal_ray(start_x, start_y, end_x, end_y, cell_size, grid, path, d
 
 	# For red segments: for each cell in path, compute intersection of the ray with the circle
 	# centered at the cell's center (with radius delta).
-	for cell in path:
-		cell_x, cell_y = cell
+	for cell in path.keys():
+		cell_y, cell_x = cell
 		center_x = cell_x * cell_size + cell_size / 2.0
 		center_y = cell_y * cell_size + cell_size / 2.0
 		# Solve (start_x + t*dx - center_x)^2 + (start_y + t*dy - center_y)^2 = delta^2
 		A = dx * dx + dy * dy
 		B = 2 * (dx * (start_x - center_x) + dy * (start_y - center_y))
-		C = (start_x - center_x) ** 2 + (start_y - center_y) ** 2 - delta * delta
+		C = (start_x - center_x) ** 2 + (start_y - center_y) ** 2 - path_delta * path_delta
 		if A == 0:
 			continue
 		discriminant = B * B - 4 * A * C
@@ -159,17 +160,19 @@ def cast_horizontal_ray(start_x, start_y, end_x, end_y, cell_size, grid, path, d
 
 	# Function to classify a point along the ray.
 	def classify_point(t):
-		x = start_x + t * dx
-		y = start_y + t * dy
+		y = start_x + t * dx
+		x = start_y + t * dy
 		# Determine which cell we're in.
 		cell_x = int(x // cell_size)
 		cell_y = int(y // cell_size)
 		# Red test: if the point is within delta of the cell center AND the cell is in path.
 		center_x = cell_x * cell_size + cell_size / 2.0
 		center_y = cell_y * cell_size + cell_size / 2.0
-		if math.hypot(x - center_x, y - center_y) < delta:
-			if [cell_x, cell_y] in path:
-				return "red"
+		if math.hypot(x - center_x, y - center_y) < path_delta:
+			if path.get((cell_x, cell_y)) is not None:
+				return path[(cell_x, cell_y)]
+			# if [cell_x, cell_y] in path:
+			# 	return "red"
 		# Grey test: if the point is within delta of any grid line.
 		# For vertical grid lines:
 		mod_x = x - cell_x * cell_size
@@ -178,8 +181,8 @@ def cast_horizontal_ray(start_x, start_y, end_x, end_y, cell_size, grid, path, d
 		mod_y = y - cell_y * cell_size
 		dist_y = min(mod_y, cell_size - mod_y)
 		if dist_x < delta or dist_y < delta:
-			return "grey"
-		return "white"
+			return (128,128,128)
+		return (255,255,255)
 
 	# Now, iterate over each consecutive interval in t.
 	for i in range(len(t_breaks) - 1):
@@ -188,13 +191,13 @@ def cast_horizontal_ray(start_x, start_y, end_x, end_y, cell_size, grid, path, d
 		# Sample a midpoint; because our breakpoints are chosen to be the only transitions,
 		# the property is constant over [t0, t1].
 		t_mid = (t0 + t1) / 2.0
-		prop = classify_point(t_mid)
-		if prop == "red":
-			color = (255, 0, 0)
-		elif prop == "grey":
-			color = (128, 128, 128)
-		else:
-			color = (255, 255, 255)
+		color = classify_point(t_mid)
+		# if prop == "red":
+		# 	color = (255, 0, 0)
+		# elif prop == "grey":
+		# 	color = (128, 128, 128)
+		# else:
+		# 	color = (255, 255, 255)
 
 		seg_start_x = start_x + t0 * dx
 		seg_start_y = start_y + t0 * dy

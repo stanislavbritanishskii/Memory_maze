@@ -16,11 +16,17 @@ config_grid_size = 5
 config_time_to_start = 1.0  # in seconds
 config_show_best_route = True
 config_view_distance = 5
+path_taken_color=(255, 0,0)
+best_path_color = (0,0,255)
+end_point_color = (0,255,0)
+start_point_color = (255,0,0)
+
 
 # These will be updated when simulation starts
 GRID_SIZE = config_grid_size
 CELL_SIZE = WINDOW_SIZE // GRID_SIZE
 PLAYER_SPEED = CELL_SIZE * 5  # pixels per second
+PATH_SIZE = CELL_SIZE /6
 THREE_D = True
 
 def draw_grid(grid, screen, furthest: pygame.math.Vector2 = None, start: pygame.math.Vector2 = None):
@@ -46,10 +52,10 @@ def draw_grid(grid, screen, furthest: pygame.math.Vector2 = None, start: pygame.
 
 
 def draw_path(path, screen, color=(0, 0, 255)):
-	for p in path:
-		pygame.draw.circle(screen, color,
+	for p in path.keys():
+		pygame.draw.circle(screen, path[p],
 			(p[1] * CELL_SIZE + CELL_SIZE / 2, p[0] * CELL_SIZE + CELL_SIZE / 2),
-			CELL_SIZE / 6)
+			PATH_SIZE)
 
 
 def start_simulation(grid_size):
@@ -58,6 +64,7 @@ def start_simulation(grid_size):
 	CELL_SIZE = WINDOW_SIZE // GRID_SIZE
 	PLAYER_SPEED = CELL_SIZE * 7
 	grid = generate_maze(GRID_SIZE, GRID_SIZE, 15)
+
 	player_start = None
 	for row in range(GRID_SIZE):
 		for col in range(GRID_SIZE):
@@ -68,14 +75,15 @@ def start_simulation(grid_size):
 			break
 	if player_start is None:
 		player_start = pygame.math.Vector2(WINDOW_SIZE / 2, WINDOW_SIZE / 2)
-	furthest, path = bfs_furthest(int(player_start.y / CELL_SIZE), int(player_start.x / CELL_SIZE), grid)
+	furthest, path = bfs_furthest(int(player_start.y / CELL_SIZE), int(player_start.x / CELL_SIZE), grid, best_path_color)
 
 	player_radius = CELL_SIZE * 0.3
 	player = Player(player_start, player_radius, PLAYER_SPEED)
 	player_start_cell = player_start / CELL_SIZE
 	player_start_cell.x = int(player_start_cell.x)
 	player_start_cell.y = int(player_start_cell.y)
-	path_taken = [[int(player_start_cell.y), int(player_start_cell.x)]]
+	path_taken = {(int(player_start_cell.y), int(player_start_cell.x)): path_taken_color,
+				  (int(furthest.x), int(furthest.y)): end_point_color}
 	return grid, player, furthest, player_start_cell, path, path_taken, PLAYER_SPEED
 
 
@@ -143,7 +151,7 @@ def set_window_size():
 	pygame.display.quit()
 
 def main():
-	global config_grid_size, config_time_to_start, config_show_best_route, PLAYER_SPEED, config_view_distance, WINDOW_SIZE, THREE_D
+	global config_grid_size, config_time_to_start, config_show_best_route, PLAYER_SPEED, config_view_distance, WINDOW_SIZE, THREE_D, PATH_SIZE
 	pygame.init()
 
 	set_window_size()
@@ -179,11 +187,14 @@ def main():
 					if event.key == pygame.K_UP:
 						config_grid_size += 2
 						grid, player, furthest, player_start_cell, path, path_taken, PLAYER_SPEED = start_simulation(config_grid_size)
+						PLAYER_SPEED = CELL_SIZE * 5
+						PATH_SIZE = CELL_SIZE / 4
 					elif event.key == pygame.K_DOWN:
 						if config_grid_size > 5:
 							config_grid_size -= 2
 							grid, player, furthest, player_start_cell, path, path_taken, PLAYER_SPEED = start_simulation(config_grid_size)
 							PLAYER_SPEED = CELL_SIZE * 5
+							PATH_SIZE = CELL_SIZE / 4
 					elif event.key == pygame.K_RIGHT:
 						config_time_to_start += 1.0
 					elif event.key == pygame.K_MINUS:
@@ -262,6 +273,8 @@ def main():
 					player.orientation += 0.1
 				if keys[pygame.K_q]:
 					player.orientation -= 0.1
+				player.normalize_orientation()
+				print(player.orientation)
 				if keys[pygame.K_a] or keys[pygame.K_LEFT]:
 					movement.x -= 1
 				if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
@@ -272,9 +285,9 @@ def main():
 					player.move(movement, grid, CELL_SIZE, dt)
 
 				# Update path taken if the player moves to a new cell
-				current_cell = [int(player.pos.y / CELL_SIZE), int(player.pos.x / CELL_SIZE)]
-				if current_cell != path_taken[-1]:
-					path_taken.append(current_cell)
+				current_cell = (int(player.pos.y / CELL_SIZE), int(player.pos.x / CELL_SIZE))
+				if current_cell not in path_taken.keys():
+					path_taken[current_cell] = path_taken_color
 
 				# Check if the player has reached the furthest cell
 				if (int(player.pos.y / CELL_SIZE) == int(furthest.x) and
@@ -322,7 +335,7 @@ def main():
 				screen.blit(countdown_text, (10, 10))
 			else:
 				if THREE_D:
-					draw_view(player, grid, CELL_SIZE, config_view_distance * CELL_SIZE, screen, WINDOW_SIZE, WINDOW_SIZE)
+					draw_view(player, grid, CELL_SIZE, config_view_distance * CELL_SIZE, screen, WINDOW_SIZE, WINDOW_SIZE, path_taken, PATH_SIZE)
 				else:
 					draw_polygon_from_rays(player, grid, CELL_SIZE, config_view_distance * CELL_SIZE, screen, 1)
 					# Simulation active: show elapsed time and other info
