@@ -1,7 +1,0 @@
-Package: memory-maze
-Version: 1.0
-Section: games
-Priority: optional
-Architecture: amd64
-Maintainer: Your Name <youremail@example.com>
-Description: memory_maze is a brain development maze game for kids and adults.

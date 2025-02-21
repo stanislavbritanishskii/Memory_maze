@@ -3,7 +3,7 @@ set -e
 
 # Configuration variables
 APP_NAME="memory_maze"
-VERSION="1.0"
+VERSION="1.1"
 BUILD_DIR="build"
 DIST_DIR="dist_packages"
 

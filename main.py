@@ -12,8 +12,8 @@ WINDOW_TITLE = "Memory Maze"
 FPS = 60
 
 # Global configuration variables (modifiable in the start screen)
-config_grid_size = 5
-config_time_to_start = 1.0  # in seconds
+config_grid_size = 13
+config_time_to_start = 6.0  # in seconds
 config_show_best_route = True
 config_view_distance = 5
 path_taken_color=(255, 0,0)
@@ -134,18 +134,21 @@ def draw_end_screen(screen, font, best_length, taken_length, percent_diff):
 
 def set_window_size():
 	global WINDOW_SIZE
-	temp_screen = pygame.display.set_mode((100, 100), pygame.RESIZABLE)
-	pygame.display.set_caption("Temporary Window")  # Helps in getting title bar height
-	temp_screen.fill((0, 0, 0))
-	pygame.display.update()
-
-	# Get the real window height including title bar
-	window_rect = temp_screen.get_rect()
-	pygame.event.pump()  # Process events to update the window
-	title_bar_height = window_rect.top
+	# temp_screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+	# pygame.display.set_caption("Temporary Window")  # Helps in getting title bar height
+	# temp_screen.fill((0, 0, 0))
+	# pygame.display.update()
+	#
+	# # Get the real window height including title bar
+	# window_rect = temp_screen.get_rect()
+	#
+	# pygame.event.pump()  # Process events to update the window
+	info = pygame.display.Info()
+	# title_bar_height = window_rect.top
+	WINDOW_SIZE = min(info.current_w, info.current_h)
 
 	# Adjust square size to fit within the available screen space
-	WINDOW_SIZE -= title_bar_height
+	WINDOW_SIZE -= CELL_SIZE
 
 	# Close temp window
 	pygame.display.quit()
@@ -274,7 +277,7 @@ def main():
 				if keys[pygame.K_q]:
 					player.orientation -= 0.1
 				player.normalize_orientation()
-				print(player.orientation)
+				
 				if keys[pygame.K_a] or keys[pygame.K_LEFT]:
 					movement.x -= 1
 				if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
